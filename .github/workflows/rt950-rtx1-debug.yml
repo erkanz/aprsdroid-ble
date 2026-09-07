@@ -6,6 +6,7 @@ on:
       - feature/ble-kiss
     paths:
       - ".github/workflows/rt950-rtx1-debug.yml"
+      - "tools/apply_rt950_cold_boot_init.py"
       - "tools/apply_rt950_rtx1_debug.py"
       - "src/backend/RadtelRtx1Codec.java"
       - "src/backend/BleKissProfileSpec.java"
@@ -28,13 +29,18 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Apply RT950 cold-boot OEM initialization
+        run: python3 tools/apply_rt950_cold_boot_init.py
+
       - name: Apply paired RT950 RTX1 transport patch
         run: python3 tools/apply_rt950_rtx1_debug.py
 
-      - name: Verify expected debug source transformation
+      - name: Verify expected RT950 source transformation
         shell: bash
         run: |
           set -euo pipefail
+          grep -F '*** RT950 OEM INIT WRITE uuid=FF31' src/backend/BluetoothLETnc.scala
+          grep -F '*** RT950 OEM INIT=PASS' src/backend/BluetoothLETnc.scala
           grep -F '*** RT950 RTX1 TX uuid=' src/backend/BluetoothLETnc.scala
           grep -F 'val NO_RESPONSE_PACE_MS = 5L' src/backend/BluetoothLETnc.scala
           grep -F 'RadtelRtx1Codec.encode(ax25)' src/backend/BluetoothLETnc.scala
