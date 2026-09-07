@@ -8,6 +8,17 @@ messages.
 
 APRSdroid is Open Source Software written in Scala and licensed under the GPLv2.
 
+## BLE KISS Support
+
+BLE KISS support has been added to this build of APRSdroid.
+
+Currently supported and tested devices:
+
+- ESP32-based BLE KISS devices
+- Radtel RT950 Pro
+
+BLE KISS RX and TX have been tested on these devices and are working.
+
 Quick links:
 
 - [Google Play](https://play.google.com/store/apps/details?id=org.aprsdroid.app)
@@ -39,5 +50,3 @@ echo "mapsApiKey=AI..." > local.properties
 # for a release build:
 ./gradlew installRelease
 ```
-
-
