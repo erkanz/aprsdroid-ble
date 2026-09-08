@@ -1,0 +1,76 @@
+name: Publish APRSdroid BLE v1.0
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set local v1.0 tag for build metadata
+        run: git tag -f v1.0 "${GITHUB_SHA}"
+
+      - name: Apply RT950 cold-boot OEM initialization
+        run: python3 tools/apply_rt950_cold_boot_init.py
+
+      - name: Apply RT950 RTX1 transport patch
+        run: python3 tools/apply_rt950_rtx1_debug.py
+
+      - name: Verify expected RT950 source transformation
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F '*** RT950 OEM INIT WRITE uuid=FF31' src/backend/BluetoothLETnc.scala
+          grep -F '*** RT950 OEM INIT=PASS' src/backend/BluetoothLETnc.scala
+          grep -F 'RadtelRtx1Codec.encode(ax25)' src/backend/BluetoothLETnc.scala
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Run BLE/RTX1 unit tests
+        run: ./gradlew --stacktrace --warning-mode all testDebugUnitTest
+
+      - name: Assemble v1.0 APK
+        run: ./gradlew --stacktrace --warning-mode all assembleDebug
+
+      - name: Prepare release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n1)"
+          test -n "$APK"
+          cp "$APK" APRSdroid-BLE-v1.0.apk
+          sha256sum APRSdroid-BLE-v1.0.apk
+
+      - name: Publish latest v1.0 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release delete v1.0 --yes --cleanup-tag 2>/dev/null || true
+          gh release create v1.0 \
+            APRSdroid-BLE-v1.0.apk \
+            --title "APRSdroid BLE v1.0" \
+            --notes "RT-950 PRO BLE KISS RX/TX support. Cold-boot OEM FF31 initialization is performed automatically, so APRSdroid works immediately after radio power-on without requiring BLE Terminal initialization." \
+            --latest \
+            --target "${GITHUB_SHA}"
