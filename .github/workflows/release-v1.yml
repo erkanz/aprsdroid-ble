@@ -2,6 +2,10 @@ name: Publish APRSdroid BLE v1.0
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-v1.yml"
 
 permissions:
   contents: write
